@@ -7,6 +7,7 @@ extension ASFWDriverConnector {
     // MARK: - Monitoring & Notifications
 
     func startMonitoring() {
+        guard !ASFWTestRuntime.hardwareFree else { return }
         connectionQueue.sync {
             if monitoringActive { return }
             monitoringActive = true
@@ -64,6 +65,7 @@ extension ASFWDriverConnector {
     // MARK: - Connection management
 
     func manualConnectLocked(forceAttempt: Bool) {
+        guard !ASFWTestRuntime.hardwareFree else { return }
         if connection != 0 && !forceAttempt {
             return
         }
@@ -81,6 +83,7 @@ extension ASFWDriverConnector {
     }
 
     func openConnectionLocked(to service: io_service_t, reason: String) {
+        guard !ASFWTestRuntime.hardwareFree else { return }
         if connection != 0 {
             return
         }
