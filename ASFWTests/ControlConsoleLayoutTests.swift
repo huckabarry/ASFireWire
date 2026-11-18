@@ -39,6 +39,43 @@ struct ControlConsoleLayoutTests {
        "domain":{"kind":"scalar","min":-60.0000,"max":6.0000,"step":0.5000,"unit":"dB"},"value":-3.0000,"origin":"observed"}]}
     """#.utf8)
 
+    static func ensembleDocument() throws -> Data {
+        let nodes: [[String: Any]] = (1...4).map {
+            ["id": $0, "name": "Mic \($0)", "kind": "endpoint", "host": false]
+        }
+        let ports: [[String: Any]] = (1...4).map {
+            ["id": $0, "owner": $0, "direction": "out", "channels": 1,
+             "name": "XLR", "signalKind": 2, "signalIndex": $0]
+        }
+        let parameters: [[String: Any]] = (0..<4).flatMap { ch in
+            [true, false].map { on in
+                ["id": (on ? 0x454e0010 : 0x454e0020) + ch,
+                 "name": "Mic \(ch + 1) 48V \(on ? "On" : "Off")",
+                 "semantic": "phantomPower", "target": ["port": ch + 1],
+                 "access": "readWrite", "domain": ["kind": "action"],
+                 "applicable": true, "value": NSNull(), "origin": NSNull()]
+            }
+        }
+        let document: [String: Any] = ["schema": "asfw.controls.v1", "guid": "0x0003db0500000001",
+            "family": "ensemble", "revision": 7, "sequence": 0,
+            "nodes": nodes, "ports": ports, "fixedLinks": [], "parameters": parameters]
+        return try JSONSerialization.data(withJSONObject: document)
+    }
+
+    @Test func ensembleUsesFourNativeInputStripsWithStatelessOnOffActions() throws {
+        let snapshot = try ControlSnapshot.decode(Self.ensembleDocument())
+        let layout = ControlConsoleLayout(snapshot)
+        #expect(layout.inputs.map(\.title) == ["Mic 1", "Mic 2", "Mic 3", "Mic 4"])
+        #expect(layout.settings.isEmpty && layout.other.isEmpty && layout.outputs.isEmpty)
+        for strip in layout.inputs {
+            let content = ControlConsoleStripContent(strip: strip, snapshot: snapshot)
+            #expect(content.actions.count == 2)
+            #expect(content.toggles.isEmpty)
+            #expect(content.actions.allSatisfy { $0.value == nil && $0.origin == nil && $0.isWritable })
+            #expect(content.actions.allSatisfy { $0.legalValue(.action) == .action && $0.legalValue(.bool(true)) == nil })
+        }
+    }
+
     private func names(_ snapshot: ControlSnapshot, _ ids: [UInt32]) -> [String] {
         ids.compactMap { id in snapshot.parameters.first { $0.id == id }?.name }
     }
@@ -126,6 +163,28 @@ struct ControlConsoleLayoutTests {
 /// looked at (set ASFW_RENDER_DIR to keep them). The fake driver serves it.
 @MainActor
 struct ControlConsoleRenderTests {
+    @Test func rendersTheEnsembleConsoleWithoutHardware() throws {
+        let driver = FakeControlsDriver()
+        driver.documentOverride = Data(String(decoding: try ControlConsoleLayoutTests.ensembleDocument(), as: UTF8.self)
+            .replacingOccurrences(of: "0x0003db0500000001", with: "0x000aac0300b1d1f7").utf8)
+        let model = DeviceControlsViewModel(source: driver)
+        model.reload()
+        #expect(model.snapshot?.family == "ensemble")
+        let directory = ProcessInfo.processInfo.environment["ASFW_RENDER_DIR"].map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.temporaryDirectory.appendingPathComponent("asfw-device-controls")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let view = DeviceControlsContent(model: model, presentation: .console, consoleScrolls: false)
+            .padding(24).frame(width: 850)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .environment(\.colorScheme, .dark)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        let image = try #require(renderer.nsImage)
+        let tiff = try #require(image.tiffRepresentation)
+        let png = try #require(NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]))
+        try png.write(to: directory.appendingPathComponent("console-ensemble.png"))
+    }
+
     @Test func rendersTheDuetConsole() async throws {
         let driver = FakeControlsDriver()
         driver.documentOverride = Data(String(decoding: ControlConsoleLayoutTests.duet, as: UTF8.self)

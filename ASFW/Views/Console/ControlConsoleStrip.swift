@@ -47,9 +47,7 @@ struct ControlConsoleStrip: View {
                 }
             }
             ForEach(content.actions) { parameter in
-                AudioConsoleStripToggle(title: parameter.name.uppercased(), accessibilityLabel: parameter.name,
-                                        isOn: false, isEnabled: parameter.isWritable && !model.writeState(parameter.id).isWriting,
-                                        tint: tint) {
+                ControlActionButton(parameter: parameter, isWriting: model.writeState(parameter.id).isWriting) {
                     Task { await model.write(parameter.id, .action) }
                 }
             }

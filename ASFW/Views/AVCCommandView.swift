@@ -7,47 +7,6 @@
 
 import SwiftUI
 
-/// An opt-in, model-gated prototype of the original Ensemble's vendor AV/C
-/// phantom-power command. This creates bytes only; it never sends on its own.
-/// The 48V LED on the hardware is the verification source until a reliable
-/// Ensemble state-read protocol has been implemented.
-enum EnsemblePhantomPowerCommand {
-    static let vendorID: UInt32 = 0x0003DB
-    static let modelID: UInt32 = 0x01EEEE
-
-    static func matches(vendorID: UInt32, modelID: UInt32) -> Bool {
-        vendorID == Self.vendorID && modelID == Self.modelID
-    }
-
-    static func frame(microphone: Int, enabled: Bool) -> Data? {
-        guard (1...4).contains(microphone) else { return nil }
-        // AV/C CONTROL, UNIT, VENDOR_DEPENDENT, Apogee OUI 00:03:DB.
-        // Ensemble command E5, zero-based mic index, Boolean, FF padding.
-        // Reference: ALSA snd-firewire-ctl-services bebob/apogee/ensemble.rs
-        // EnsembleOperation::build_operands and EnsembleCmd::MicPower.
-        return Data([0x00, 0xFF, 0x00, 0x00, 0x03, 0xDB,
-                     0xE5, UInt8(microphone - 1), enabled ? 1 : 0,
-                     0xFF, 0xFF, 0xFF])
-    }
-
-    /// AV/C acceptance means the command was accepted, NOT that 48V was
-    /// independently read back from the device. Verify the front-panel LED.
-    static func isAccepted(_ response: Data, microphone: Int, enabled: Bool) -> Bool {
-        // Data slices can retain a nonzero startIndex. Normalize before indexing.
-        let response = Array(response)
-        guard let frame = frame(microphone: microphone, enabled: enabled),
-              response.count >= 6,
-              response[0] == 0x09, response[1] == 0xFF, response[2] == 0x00,
-              response[3] == 0x00, response[4] == 0x03, response[5] == 0xDB else {
-            return false
-        }
-        // Some AV/C replies carry only header/company ID. If the command is
-        // echoed, it must match the command we actually requested.
-        return response.count == 6 ||
-            (response.count >= 9 && response[6..<9].elementsEqual(frame[6..<9]))
-    }
-}
-
 struct AVCCommandView: View {
     @ObservedObject var viewModel: DebugViewModel
 
@@ -63,14 +22,6 @@ struct AVCCommandView: View {
     @State private var operands: String = "07FFFFFF"
 
     @State private var rawCommandHex: String = "01 FF 31 07 FF FF FF FF"
-
-    // The original Ensemble has four software-controlled 48V microphone inputs.
-    // No inferred/stored ON state: only the actual hardware LED verifies a write.
-    @State private var pendingPhantomMicrophone = 1
-    @State private var pendingPhantomEnable = false
-    @State private var showPhantomConfirmation = false
-    @State private var phantomSending = false
-    @State private var phantomResult: String?
 
     @State private var isSending = false
     @State private var lastResponseData: Data?
@@ -229,121 +180,17 @@ struct AVCCommandView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(isSending || phantomSending || !viewModel.isConnected || selectedUnitGUID == nil)
+                .disabled(isSending || !viewModel.isConnected || selectedUnitGUID == nil)
                 .controlSize(.large)
-
-                if selectedEnsembleUnit != nil {
-                    ensemblePhantomSection
-                }
 
                 Spacer()
             }
             .padding()
         }
         .navigationTitle("AV/C Commands")
-        .alert("Send Ensemble 48V command?", isPresented: $showPhantomConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button(pendingPhantomEnable ? "Enable 48V" : "Disable 48V") {
-                sendEnsemblePhantom()
-            }
-        } message: {
-            Text("Mic \(pendingPhantomMicrophone): this changes physical 48V power. Stop recording and mute monitors. For the initial test disconnect microphones; never test with a ribbon microphone attached. Confirm the 48V LED on the Ensemble after the command.")
-        }
         .onAppear {
             if viewModel.isConnected {
                 refreshUnits()
-            }
-        }
-    }
-
-    // MARK: - Original Apogee Ensemble (experimental hardware control)
-
-    private var selectedEnsembleUnit: ASFWDriverConnector.AVCUnitInfo? {
-        guard let guid = selectedUnitGUID else { return nil }
-        return avcUnits.first {
-            $0.guid == guid &&
-                EnsemblePhantomPowerCommand.matches(vendorID: $0.vendorID, modelID: $0.modelID)
-        }
-    }
-
-    private var ensemblePhantomSection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Experimental: independently controlled 48V on mic inputs 1–4. This uses the Ensemble-specific Apogee AV/C command, not the Duet control. These buttons never run automatically.")
-                    .font(.callout)
-                Text("This build cannot read the 48V state back. A successful AV/C reply is not proof that phantom power changed; verify the corresponding front-panel LED. Inputs must already be in microphone mode.")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-
-                ForEach(1...4, id: \.self) { microphone in
-                    HStack(spacing: 12) {
-                        Text("Mic \(microphone)")
-                            .frame(width: 70, alignment: .leading)
-                        Button("48V On") { prepareEnsemblePhantom(microphone, enabled: true) }
-                            .disabled(phantomSending || isSending || !viewModel.isConnected)
-                        Button("48V Off") { prepareEnsemblePhantom(microphone, enabled: false) }
-                            .disabled(phantomSending || isSending || !viewModel.isConnected)
-                        Spacer()
-                    }
-                }
-                if phantomSending { ProgressView("Waiting for AV/C response…") }
-                if let phantomResult {
-                    Text(phantomResult).font(.callout)
-                        .textSelection(.enabled)
-                }
-            }
-        } label: {
-            Label("Ensemble — Phantom Power (experimental)", systemImage: "bolt.badge.a")
-        }
-    }
-
-    private func prepareEnsemblePhantom(_ microphone: Int, enabled: Bool) {
-        guard selectedEnsembleUnit != nil, !phantomSending else { return }
-        pendingPhantomMicrophone = microphone
-        pendingPhantomEnable = enabled
-        showPhantomConfirmation = true
-    }
-
-    private func sendEnsemblePhantom() {
-        guard let unit = selectedEnsembleUnit,
-              let frame = EnsemblePhantomPowerCommand.frame(
-                microphone: pendingPhantomMicrophone, enabled: pendingPhantomEnable
-              ), !phantomSending else { return }
-
-        let guid = unit.guid
-        let microphone = pendingPhantomMicrophone
-        let enabled = pendingPhantomEnable
-        phantomSending = true
-        phantomResult = nil
-        DispatchQueue.global(qos: .userInitiated).async {
-            // Revalidate identity immediately before sending; a stale selection
-            // must never cause a 48V command to reach a different AV/C device.
-            let current = self.viewModel.connector.getAVCUnits()?.first { $0.guid == guid }
-            guard let current, EnsemblePhantomPowerCommand.matches(
-                vendorID: current.vendorID, modelID: current.modelID
-            ) else {
-                DispatchQueue.main.async {
-                    self.phantomSending = false
-                    self.phantomResult = "No matching Ensemble attached. No command sent."
-                }
-                return
-            }
-
-            let response = self.viewModel.connector.sendRawFCPCommand(guid: guid, frame: frame)
-            DispatchQueue.main.async {
-                self.phantomSending = false
-                if let response {
-                    let responseHex = self.hexString(response)
-                    if EnsemblePhantomPowerCommand.isAccepted(
-                        response, microphone: microphone, enabled: enabled
-                    ) {
-                        self.phantomResult = "Mic \(microphone): 48V \(enabled ? "ON" : "OFF") command ACCEPTED. Verify the matching LED before assuming power changed. Response: \(responseHex)"
-                    } else {
-                        self.phantomResult = "Mic \(microphone): unexpected/refused AV/C response. Do not assume 48V changed. Response: \(responseHex)"
-                    }
-                } else {
-                    self.phantomResult = "Mic \(microphone): transport error or timeout. Do not assume 48V changed. See System Logs."
-                }
             }
         }
     }

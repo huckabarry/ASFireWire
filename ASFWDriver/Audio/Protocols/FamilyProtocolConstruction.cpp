@@ -5,6 +5,7 @@
 
 #include "FamilyProtocolConstruction.hpp"
 #include "GenericAvcProtocol.hpp"
+#include "BeBoB/Apogee/EnsembleProtocol.hpp"
 
 #include "DICE/Avid/AvidMboxProRouting.hpp"
 #include "DICE/Focusrite/SPro24DspProtocol.hpp"
@@ -229,6 +230,11 @@ std::unique_ptr<IDeviceProtocol> CreateFamilyDeviceProtocol(
                 plan.modelName.empty() ? std::string{"Digi 002/003"} : plan.modelName);
 
         case ProtocolImplementationId::GenericAvc:
+            if (plan.candidates.size() == 1 && plan.candidates.front() ==
+                DeviceProfiles::Audio::DeviceDefinitionId::ApogeeEnsemble) {
+                return std::make_unique<BeBoB::Apogee::EnsembleProtocol>(
+                    busOps, busInfo, route, irmClient, cmpClient, timerScheduler);
+            }
             ASFW_LOG(Audio, "[AvcRuntime] generic CMP backend node=0x%04x", nodeId);
             return std::make_unique<GenericAvcProtocol>(
                 busOps, busInfo, route, irmClient, cmpClient, timerScheduler);

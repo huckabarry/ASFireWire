@@ -10,6 +10,12 @@
 namespace ASFW::DeviceProfiles::Audio::Definitions {
 
 inline constexpr std::array kApogeeDefinitions{
+    // Preserve the generic AV/C geometry/rate/stream policy that already works
+    // on Ensemble. The factory adds only its native controls provider.
+    Definition(DeviceDefinitionId::ApogeeEnsemble, kApogeeVendorId, 0x01eeee,
+               AudioFamilyProviderId::GenericAvc, ProbePolicyId::GenericAvc,
+               ProfileBuilderId::GenericAvc, ProtocolImplementationId::GenericAvc,
+               SupportDisposition::Supported, kApogeeVendorName, "Ensemble FireWire"),
     Definition(DeviceDefinitionId::ApogeeDuet, kApogeeVendorId, kApogeeDuetModelId,
                AudioFamilyProviderId::OXFW, ProbePolicyId::OxfwAvc,
                ProfileBuilderId::ApogeeDuet,

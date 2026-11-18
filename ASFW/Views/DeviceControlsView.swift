@@ -56,6 +56,7 @@ struct DeviceControlsContent: View {
             header
             if let message = model.message { banner(message, systemImage: "arrow.triangle.2.circlepath", tint: .orange) }
             content
+                .id("\(model.selectedGUID ?? 0):\(model.snapshot?.revision ?? 0)")
         }
     }
 
@@ -354,8 +355,7 @@ struct ParameterRow: View {
     @ViewBuilder private var control: some View {
         switch parameter.effectiveDomain {
         case .action:
-            Button(parameter.name) { write(.action) }
-                .disabled({ if case .writing = state { true } else { false } }())
+            ControlActionButton(parameter: parameter, isWriting: state.isWriting) { write(.action) }
         case .scalar(let domain):
             scalar(domain)
         case .bool:
@@ -492,5 +492,32 @@ struct ControlBadge: View {
             .padding(.vertical, 2)
             .foregroundStyle(tint)
             .background(tint.opacity(0.14), in: Capsule())
+    }
+}
+
+
+/// Action controls do not imply observed state. Phantom commands require an
+/// explicit confirmation and leave the last-known hardware state unspecified.
+struct ControlActionButton: View {
+    let parameter: ControlParameter
+    let isWriting: Bool
+    let write: () -> Void
+    @State private var confirming = false
+
+    var body: some View {
+        Button(parameter.name) {
+            if parameter.semantic == .phantomPower { confirming = true }
+            else { write() }
+        }
+        .disabled(!parameter.isWritable || isWriting)
+        .confirmationDialog(parameter.name, isPresented: $confirming, titleVisibility: .visible) {
+            Button(parameter.name) { write() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Mute monitoring before changing phantom power. Current 48V state and input mode are not reported; check the Ensemble’s front-panel indicator.")
+        }
+        .help(parameter.semantic == .phantomPower
+              ? "Sends a 48V command. Check the front-panel indicator for current state."
+              : parameter.name)
     }
 }

@@ -1034,6 +1034,7 @@
 		5C041C20D869A06663A77B32 /* BoundedPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundedPlaceholder.swift; sourceTree = "<group>"; };
 		5C21078F430E0BF165686440 /* AudioAnalyzerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAnalyzerModels.swift; sourceTree = "<group>"; };
 		5C91338795CF9EDBFF83C105 /* TransactionCompletionHandler.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TransactionCompletionHandler.hpp; sourceTree = "<group>"; };
+		5C99B2C49203A16A076A2074 /* EnsembleProtocol.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = EnsembleProtocol.hpp; sourceTree = "<group>"; };
 		5C9CB7FD7D277B18AC1ABA76 /* DiceReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiceReportView.swift; sourceTree = "<group>"; };
 		5CFD326310BE43F6EA6ECF38 /* AVCDiscovery.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AVCDiscovery.cpp; sourceTree = "<group>"; };
 		5D72F405B0691442CEBAEF1C /* AvcExtensionInventory.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AvcExtensionInventory.hpp; sourceTree = "<group>"; };
@@ -1326,6 +1327,7 @@
 		9CF631EF8DD492E27D90ADF2 /* AudioLoudnessMeasurementSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLoudnessMeasurementSessionTests.swift; sourceTree = "<group>"; };
 		9CF686DD5D5F51F23BB44565 /* BusInspectorTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusInspectorTab.swift; sourceTree = "<group>"; };
 		9CFCDBBEAFF6591067556D82 /* MetricsSink.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = MetricsSink.hpp; sourceTree = "<group>"; };
+		9D09977EA8DB27535D1AD1B1 /* EnsembleControls.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = EnsembleControls.hpp; sourceTree = "<group>"; };
 		9D1FB7BE325E0785B85F5655 /* InterruptDrain.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = InterruptDrain.hpp; sourceTree = "<group>"; };
 		9D63937D5D5E665DA45C4D17 /* DICETransaction.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DICETransaction.hpp; sourceTree = "<group>"; };
 		9D6A93FFD51132B2A4F8B00E /* ASFWMCPBusResetTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASFWMCPBusResetTools.swift; sourceTree = "<group>"; };
@@ -1876,6 +1878,15 @@
 				15ABDCE9BEA3AEE511E5ADB1 /* IControlProvider.hpp */,
 			);
 			path = Controls;
+			sourceTree = "<group>";
+		};
+		10156ACDC68D0EA88F65C054 /* Apogee */ = {
+			isa = PBXGroup;
+			children = (
+				9D09977EA8DB27535D1AD1B1 /* EnsembleControls.hpp */,
+				5C99B2C49203A16A076A2074 /* EnsembleProtocol.hpp */,
+			);
+			path = Apogee;
 			sourceTree = "<group>";
 		};
 		103323B33769AFC97E9FE82E /* Audio */ = {
@@ -3708,6 +3719,7 @@
 				D87DB965F8A0BA1405BDFD1E /* MAudioSpecialRouting.hpp */,
 				9CA38E2546AF8F3C16FC7B60 /* MAudioSpecialStartPolicy.hpp */,
 				AB1BE8DD77E29FF5F092DEE9 /* Phase88MixerData.hpp */,
+				10156ACDC68D0EA88F65C054 /* Apogee */,
 			);
 			path = BeBoB;
 			sourceTree = "<group>";

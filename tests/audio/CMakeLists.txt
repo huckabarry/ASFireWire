@@ -518,3 +518,10 @@ add_audio_test(OrpheusControlModelTests
     "${ASFW_DRIVER_DIR}/Audio/Model/Topology/Validate.cpp"
 )
 
+
+add_audio_test(EnsembleControlsTests
+    topology/EnsembleControlsTests.cpp
+    "${ASFW_DRIVER_DIR}/Protocols/AVC/Core/AvcFrame.cpp"
+    "${ASFW_DRIVER_DIR}/Audio/Controls/CoreAudioProjection.cpp"
+    "${ASFW_DRIVER_DIR}/Audio/Model/Topology/Validate.cpp"
+)

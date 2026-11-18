@@ -975,6 +975,27 @@ TEST(AudioDeviceCatalog, Preserves64BitDeviceInstanceIdAboveUint32Max) {
     EXPECT_EQ(planPerUnitEvidence->unit.device.value, kLargeInstanceId);
 }
 
+TEST(AudioDeviceCatalogTests, EnsembleUsesExactIdentityAndPreservesGenericAvcStreaming) {
+    auto device = MakeDevice(0x0003db0500000001, 0x0003db, 0x01eeee,
+                             {{4, 0x00a02d, 0x010001, std::nullopt}});
+    const auto plan = AudioDeviceCatalog::Resolve(device);
+    ASSERT_TRUE(plan);
+    EXPECT_EQ(plan->candidates, std::vector{DeviceDefinitionId::ApogeeEnsemble});
+    EXPECT_EQ(plan->family, AudioFamilyProviderId::GenericAvc);
+    EXPECT_EQ(plan->probePolicy, ProbePolicyId::GenericAvc);
+    EXPECT_EQ(plan->profileBuilder, ProfileBuilderId::GenericAvc);
+    EXPECT_EQ(plan->protocolImplementation, ProtocolImplementationId::GenericAvc);
+    for (uint32_t model : {0x01ddddU, 0x01eeefU}) {
+        device.identity.rootModelId = model;
+        const auto other = AudioDeviceCatalog::Resolve(device);
+        if (other) EXPECT_NE(other->candidates, std::vector{DeviceDefinitionId::ApogeeEnsemble});
+    }
+    device.identity.rootModelId = 0x01eeee;
+    device.identity.rootVendorId = 0x000001;
+    const auto other = AudioDeviceCatalog::Resolve(device);
+    if (other) EXPECT_NE(other->candidates, std::vector{DeviceDefinitionId::ApogeeEnsemble});
+}
+
 } // namespace
 
 TEST(AudioDeviceCatalog, UnprofiledOxfordUsesCapabilityDiscoveryInsteadOfIdentityVeto) {

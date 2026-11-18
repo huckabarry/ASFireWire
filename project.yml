@@ -105,6 +105,7 @@ targets:
       # Includes generic AvcControlMapping.hpp, the ASFWParameter* CoreAudio controls (IIG/CPP), volume limits, and
       # the owned descriptor FSM, discovery reducer/session, snapshot graph,
       # OnceCompletion and bounded parsers.
+      # Includes BeBoB/Apogee Ensemble native phantom action controls (no state readback).
       # Includes Audio/Runtime/Configuration and the shared multi-rate resolver.
       # Includes the common MOTU register/profile, model table and SPH regulator.
       # Includes the owned FF800 timer-driven transmit start and shared Fireface clock decoder.
