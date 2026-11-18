@@ -10,6 +10,42 @@ struct AVCUnitWireParsingTests {
         }
     }
 
+    @Test func ensemblePhantomFCPFramesUseCorrectVendorAndMicIndex() {
+        // Vendor-dependent AV/C CONTROL, Apogee OUI, E5 + mic 0..3.
+        for microphone in 1...4 {
+            for enabled in [false, true] {
+                let expected = Data([0x00, 0xFF, 0x00, 0x00, 0x03, 0xDB,
+                                     0xE5, UInt8(microphone - 1), enabled ? 1 : 0,
+                                     0xFF, 0xFF, 0xFF])
+                #expect(EnsemblePhantomPowerCommand.frame(
+                    microphone: microphone, enabled: enabled
+                ) == expected)
+            }
+        }
+        #expect(EnsemblePhantomPowerCommand.frame(microphone: 0, enabled: true) == nil)
+        #expect(EnsemblePhantomPowerCommand.frame(microphone: 5, enabled: true) == nil)
+    }
+
+    @Test func ensemblePhantomOnlyMatchesOriginalFireWireModel() {
+        #expect(EnsemblePhantomPowerCommand.matches(vendorID: 0x0003DB, modelID: 0x01EEEE))
+        #expect(!EnsemblePhantomPowerCommand.matches(vendorID: 0x0003DB, modelID: 0x01DDDD))
+        #expect(!EnsemblePhantomPowerCommand.matches(vendorID: 0x000000, modelID: 0x01EEEE))
+    }
+
+    @Test func ensemblePhantomResponseMustBeAVCAcceptedAndMatchRequest() {
+        let on = Data([0x09, 0xFF, 0x00, 0x00, 0x03, 0xDB,
+                       0xE5, 0x00, 0x01, 0xFF, 0xFF, 0xFF])
+        #expect(EnsemblePhantomPowerCommand.isAccepted(on, microphone: 1, enabled: true))
+        #expect(!EnsemblePhantomPowerCommand.isAccepted(on, microphone: 1, enabled: false))
+        #expect(!EnsemblePhantomPowerCommand.isAccepted(on, microphone: 2, enabled: true))
+        var rejected = on
+        rejected[0] = 0x0A // AV/C REJECTED, not a successful write
+        #expect(!EnsemblePhantomPowerCommand.isAccepted(rejected, microphone: 1, enabled: true))
+        var wrongVendor = on
+        wrongVendor[5] = 0x00
+        #expect(!EnsemblePhantomPowerCommand.isAccepted(wrongVendor, microphone: 1, enabled: true))
+    }
+
     @Test func parses32BitVendorAndModelIDs() {
         var wire = Data()
 
