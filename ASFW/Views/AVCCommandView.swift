@@ -226,7 +226,7 @@ struct AVCCommandView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(isSending || !viewModel.isConnected || selectedUnitGUID == nil)
+                .disabled(isSending || phantomSending || !viewModel.isConnected || selectedUnitGUID == nil)
                 .controlSize(.large)
 
                 if selectedEnsembleUnit != nil {
@@ -315,31 +315,31 @@ struct AVCCommandView: View {
         DispatchQueue.global(qos: .userInitiated).async {
             // Revalidate identity immediately before sending; a stale selection
             // must never cause a 48V command to reach a different AV/C device.
-            let current = viewModel.connector.getAVCUnits()?.first { $0.guid == guid }
+            let current = self.viewModel.connector.getAVCUnits()?.first { $0.guid == guid }
             guard let current, EnsemblePhantomPowerCommand.matches(
                 vendorID: current.vendorID, modelID: current.modelID
             ) else {
                 DispatchQueue.main.async {
-                    phantomSending = false
-                    phantomResult = "No matching Ensemble attached. No command sent."
+                    self.phantomSending = false
+                    self.phantomResult = "No matching Ensemble attached. No command sent."
                 }
                 return
             }
 
-            let response = viewModel.connector.sendRawFCPCommand(guid: guid, frame: frame)
+            let response = self.viewModel.connector.sendRawFCPCommand(guid: guid, frame: frame)
             DispatchQueue.main.async {
-                phantomSending = false
+                self.phantomSending = false
                 if let response {
-                    let responseHex = hexString(response)
+                    let responseHex = self.hexString(response)
                     if EnsemblePhantomPowerCommand.isAccepted(
                         response, microphone: microphone, enabled: enabled
                     ) {
-                        phantomResult = "Mic \(microphone): 48V \(enabled ? "ON" : "OFF") command ACCEPTED. Verify the matching LED before assuming power changed. Response: \(responseHex)"
+                        self.phantomResult = "Mic \(microphone): 48V \(enabled ? "ON" : "OFF") command ACCEPTED. Verify the matching LED before assuming power changed. Response: \(responseHex)"
                     } else {
-                        phantomResult = "Mic \(microphone): unexpected/refused AV/C response. Do not assume 48V changed. Response: \(responseHex)"
+                        self.phantomResult = "Mic \(microphone): unexpected/refused AV/C response. Do not assume 48V changed. Response: \(responseHex)"
                     }
                 } else {
-                    phantomResult = "Mic \(microphone): transport error or timeout. Do not assume 48V changed. See System Logs."
+                    self.phantomResult = "Mic \(microphone): transport error or timeout. Do not assume 48V changed. See System Logs."
                 }
             }
         }
