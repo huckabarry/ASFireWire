@@ -3,6 +3,17 @@ import Testing
 @testable import ASFW
 
 struct AVCUnitWireParsingTests {
+    @Test @MainActor func testHostCannotConnectToInstalledDriver() {
+        #expect(ASFWTestRuntime.hardwareFree)
+        guard ASFWTestRuntime.hardwareFree else { return }
+        let connector = ASFWDriverConnector()
+        connector.connectionQueue.sync {
+            connector.manualConnectLocked(forceAttempt: true)
+            #expect(!connector.monitoringActive)
+            #expect(connector.connection == 0)
+        }
+    }
+
     private func appendLE<T: FixedWidthInteger>(_ value: T, to data: inout Data) {
         var raw = value.littleEndian
         withUnsafeBytes(of: &raw) { bytes in
@@ -44,6 +55,19 @@ struct AVCUnitWireParsingTests {
         var wrongVendor = on
         wrongVendor[5] = 0x00
         #expect(!EnsemblePhantomPowerCommand.isAccepted(wrongVendor, microphone: 1, enabled: true))
+        // A partial command echo must not be reported as accepted.
+        for count in [0, 1, 2, 3, 4, 5, 7, 8] {
+            #expect(!EnsemblePhantomPowerCommand.isAccepted(
+                Data(on.prefix(count)), microphone: 1, enabled: true
+            ))
+        }
+        #expect(EnsemblePhantomPowerCommand.isAccepted(
+            Data(on.prefix(6)), microphone: 1, enabled: true
+        ))
+        let prefixed = Data([0xFF]) + on
+        #expect(EnsemblePhantomPowerCommand.isAccepted(
+            prefixed.dropFirst(), microphone: 1, enabled: true
+        ))
     }
 
     @Test func parses32BitVendorAndModelIDs() {

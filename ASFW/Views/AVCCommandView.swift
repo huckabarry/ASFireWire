@@ -33,6 +33,8 @@ enum EnsemblePhantomPowerCommand {
     /// AV/C acceptance means the command was accepted, NOT that 48V was
     /// independently read back from the device. Verify the front-panel LED.
     static func isAccepted(_ response: Data, microphone: Int, enabled: Bool) -> Bool {
+        // Data slices can retain a nonzero startIndex. Normalize before indexing.
+        let response = Array(response)
         guard let frame = frame(microphone: microphone, enabled: enabled),
               response.count >= 6,
               response[0] == 0x09, response[1] == 0xFF, response[2] == 0x00,
@@ -41,7 +43,8 @@ enum EnsemblePhantomPowerCommand {
         }
         // Some AV/C replies carry only header/company ID. If the command is
         // echoed, it must match the command we actually requested.
-        return response.count < 9 || response[6..<9].elementsEqual(frame[6..<9])
+        return response.count == 6 ||
+            (response.count >= 9 && response[6..<9].elementsEqual(frame[6..<9]))
     }
 }
 
